@@ -16,7 +16,7 @@ class LLMProfile:
     """Connection profile for an LLM endpoint."""
     api_base: str = "https://openrouter.ai/api/v1"
     api_key: str = ""
-    model: str = "google/gemini-2.0-flash-001"
+    model: str = "google/gemini-3-flash-preview"
 
 
 @dataclass
