@@ -18,7 +18,6 @@ Context: {date} | OS: {os}
 Rules:
 - Prefer bash for system ops. patch_file for edits.
 - Web scraping: prefer http_request over curl (cleaner output).
-- OS Safety: Avoid non-portable flags (e.g. NO `grep -P` on macOS).
 - On failure: ALWAYS try 2-3 alternatives.
 - Brief summary after task completion.
 
