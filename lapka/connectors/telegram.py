@@ -138,6 +138,14 @@ async def _cmd_setmodel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         await update.message.reply_text(f"🤖 Main → `{new_model}`", parse_mode="Markdown")
 
 
+async def _safe_reply(message, text: str) -> None:
+    """Send with Markdown, fallback to plain text on parse errors."""
+    try:
+        await message.reply_text(text, parse_mode="Markdown")
+    except Exception:
+        await message.reply_text(text)
+
+
 async def _handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user_id = update.effective_user.id
     if not _is_allowed(user_id):
@@ -180,7 +188,7 @@ async def _handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         if len(full_response) > 4000:
             full_response = full_response[:4000] + "\n... (truncated)"
 
-        await update.message.reply_text(full_response, parse_mode="Markdown")
+        await _safe_reply(update.message, full_response)
 
     except Exception as e:
         log.exception("Error processing message from user %d", user_id)
@@ -224,7 +232,7 @@ async def _handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         full_response = "\n\n".join(parts)
         if len(full_response) > 4000:
             full_response = full_response[:4000] + "\n... (truncated)"
-        await update.message.reply_text(full_response, parse_mode="Markdown")
+        await _safe_reply(update.message, full_response)
     except Exception as e:
         log.exception("Error processing photo from user %d", user_id)
         await update.message.reply_text(f"❌ Error: {e}")
