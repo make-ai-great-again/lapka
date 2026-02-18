@@ -12,7 +12,7 @@ from typing import Any, TYPE_CHECKING
 if TYPE_CHECKING:
     from .llm import LLMClient
 
-from .prompts import SYSTEM_PROMPT, COMPACTION_PROMPT
+from .prompts import get_system_prompt, COMPACTION_PROMPT
 
 log = logging.getLogger("lapka.context")
 
@@ -69,7 +69,7 @@ class ContextManager:
     def get_messages(self) -> list[dict[str, Any]]:
         """Return compact message list for LLM: system + compaction + recent."""
         messages: list[dict[str, Any]] = [
-            {"role": "system", "content": SYSTEM_PROMPT}
+            {"role": "system", "content": get_system_prompt()}
         ]
 
         if self._compaction_summary:
@@ -118,7 +118,7 @@ class ContextManager:
         )
 
         # Build the full conversation for summarization
-        summary_messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        summary_messages = [{"role": "system", "content": get_system_prompt()}]
 
         # If we have a previous compaction summary, include it
         if self._compaction_summary:

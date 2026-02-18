@@ -4,11 +4,14 @@ System prompt templates for Lapka agent.
 ⚠️ CONTEXT BUDGET GUARD ⚠️
 System prompt MUST stay under 200 tokens (~700 chars).
 Every word costs tokens × every LLM call. Think thrice before adding anything.
-Current: ~180 tokens. Budget: 200 max.
+Current: ~185 tokens. Budget: 200 max.
 """
 
-SYSTEM_PROMPT = """\
+from datetime import datetime
+
+_SYSTEM_TEMPLATE = """\
 You are Lapka 🐾, a task-execution AI. Use tools, be concise.
+Today: {date}
 
 Rules:
 - Prefer bash for system ops. patch_file for edits (saves context).
@@ -19,6 +22,11 @@ Rules:
 
 Tools: bash, read_file, write_file, patch_file, list_dir, http_request.
 """
+
+
+def get_system_prompt() -> str:
+    return _SYSTEM_TEMPLATE.format(date=datetime.now().strftime("%Y-%m-%d %H:%M %Z"))
+
 
 COMPACTION_PROMPT = """\
 CONTEXT CHECKPOINT. Summarize conversation for another LLM to continue.
