@@ -43,12 +43,25 @@ class Agent:
         """Reset conversation context."""
         self.ctx.reset()
 
-    async def run(self, user_message: str, on_output: OnOutput | None = None) -> str:
+    async def run(
+        self,
+        user_message: str,
+        on_output: OnOutput | None = None,
+        image_b64: str | None = None,
+    ) -> str:
         """Process a user message through the agent loop.
         
         Returns the final text response.
         """
-        self.ctx.add_message("user", user_message)
+        if image_b64:
+            # Multi-part content for vision
+            content: list[dict[str, Any]] = [
+                {"type": "text", "text": user_message or "What's in this image?"},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}},
+            ]
+            self.ctx.add_raw({"role": "user", "content": content})
+        else:
+            self.ctx.add_message("user", user_message)
 
         iteration = 0
         while iteration < self.config.max_tool_iterations:
@@ -71,6 +84,7 @@ class Agent:
                     response.usage.prompt_tokens,
                     response.usage.completion_tokens,
                 )
+                self.ctx.update_actual_tokens(response.usage.prompt_tokens)
 
             # If the model returns text without tool calls — we're done
             if not response.tool_calls:

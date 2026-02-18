@@ -13,16 +13,19 @@ log = logging.getLogger("lapka.tools.bash")
 
 # Default blocked patterns
 _BLOCKED = [
-    "rm -rf /", "rm -rf /*", "mkfs", "dd if=/dev",
+    "rm -rf /", "rm -rf /*", "rm -r -f", "mkfs", "dd if=/dev",
     ":(){:|:&};:", "chmod -R 777 /", "shutdown", "reboot",
-    "init 0", "init 6",
+    "init 0", "init 6", "> /dev/sd", "/etc/shadow",
+    "curl|sh", "curl|bash", "wget|sh", "wget|bash",
 ]
 
 
 def _is_blocked(command: str, blocklist: list[str]) -> bool:
-    cmd_lower = command.lower().strip()
+    # Normalize: lowercase + collapse whitespace
+    import re
+    cmd = re.sub(r"\s+", " ", command.lower().strip())
     for pat in blocklist:
-        if pat.lower() in cmd_lower:
+        if pat.lower() in cmd:
             return True
     return False
 

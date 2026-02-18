@@ -47,6 +47,7 @@ class ContextManager:
     _compaction_summary: str | None = None
     _compaction_count: int = 0
     _total_tokens_used: int = 0
+    _last_prompt_tokens: int = 0  # actual tokens from last API response
 
     def reset(self) -> None:
         """Clear all history."""
@@ -85,12 +86,25 @@ class ContextManager:
         messages.extend(self._full_history)
         return messages
 
+    def update_actual_tokens(self, prompt_tokens: int) -> None:
+        """Update with actual token count from API response."""
+        self._last_prompt_tokens = prompt_tokens
+
     def needs_compaction(self) -> bool:
-        """Check if context exceeds threshold."""
-        messages = self.get_messages()
-        current = estimate_messages_tokens(messages)
+        """Check if context exceeds threshold using actual API token counts."""
         threshold = int(self.max_tokens * self.compact_threshold)
-        return current > threshold
+        # Prefer actual API count over estimate
+        if self._last_prompt_tokens > 0:
+            needs = self._last_prompt_tokens > threshold
+        else:
+            messages = self.get_messages()
+            needs = estimate_messages_tokens(messages) > threshold
+        if needs:
+            log.info(
+                "Compaction needed: actual=%d, threshold=%d",
+                self._last_prompt_tokens, threshold,
+            )
+        return needs
 
     async def compact(self, llm_client: "LLMClient") -> None:
         """Perform Codex-style compaction: summarize full history, rebuild."""
@@ -181,6 +195,7 @@ class ContextManager:
         return {
             "history_messages": len(self._full_history),
             "estimated_tokens": estimate_messages_tokens(messages),
+            "actual_prompt_tokens": self._last_prompt_tokens,
             "compaction_count": self._compaction_count,
             "total_tokens_used": self._total_tokens_used,
             "has_checkpoint": self._compaction_summary is not None,

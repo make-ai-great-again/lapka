@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 from typing import Any
 
@@ -76,7 +77,7 @@ async def _cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     text = (
         f"📊 Context stats:\n"
         f"Messages: {stats['history_messages']}\n"
-        f"Est. tokens: {stats['estimated_tokens']}\n"
+        f"Tokens (actual): {stats['actual_prompt_tokens']}\n"
         f"Compactions: {stats['compaction_count']}\n"
         f"Total tokens used: {stats['total_tokens_used']}"
     )
@@ -186,6 +187,49 @@ async def _handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await update.message.reply_text(f"❌ Error: {e}")
 
 
+async def _handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Handle photo messages — download and send to vision model."""
+    user_id = update.effective_user.id
+    if not _is_allowed(user_id):
+        await update.message.reply_text("⛔ Access denied.")
+        return
+
+    agent = _get_agent(user_id)
+    await update.message.chat.send_action("typing")
+
+    # Get largest photo
+    photo = update.message.photo[-1]
+    file = await context.bot.get_file(photo.file_id)
+    data = await file.download_as_bytearray()
+    img_b64 = base64.b64encode(data).decode()
+
+    caption = update.message.caption or ""
+    tool_lines: list[str] = []
+
+    async def on_output(msg: str) -> None:
+        tool_lines.append(msg)
+        try:
+            await update.message.chat.send_action("typing")
+        except Exception:
+            pass
+
+    try:
+        response = await agent.run(caption, on_output=on_output, image_b64=img_b64)
+
+        parts = []
+        if tool_lines:
+            summary = "\n".join(tool_lines[-5:])
+            parts.append(f"```\n{summary}\n```")
+        parts.append(response)
+        full_response = "\n\n".join(parts)
+        if len(full_response) > 4000:
+            full_response = full_response[:4000] + "\n... (truncated)"
+        await update.message.reply_text(full_response, parse_mode="Markdown")
+    except Exception as e:
+        log.exception("Error processing photo from user %d", user_id)
+        await update.message.reply_text(f"❌ Error: {e}")
+
+
 async def run_telegram(config: Config) -> None:
     """Start the Telegram bot."""
     global _config
@@ -205,6 +249,7 @@ async def run_telegram(config: Config) -> None:
     app.add_handler(CommandHandler("model", _cmd_model))
     app.add_handler(CommandHandler("setmodel", _cmd_setmodel))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _handle_message))
+    app.add_handler(MessageHandler(filters.PHOTO, _handle_photo))
 
     log.info("Starting Telegram bot...")
     print("🐾 Lapka Telegram bot started. Waiting for messages...")
