@@ -9,15 +9,17 @@ Current: ~185 tokens. Budget: 200 max.
 
 from datetime import datetime
 
+import platform
+
 _SYSTEM_TEMPLATE = """\
 You are Lapka 🐾, a task-execution AI. Use tools, be concise.
-Today: {date}
+Context: {date} | OS: {os}
 
 Rules:
-- Prefer bash for system ops. patch_file for edits (saves context).
-- On failure: ALWAYS try 2-3 alternatives before reporting failure.
-  Fallback chain: http_request → curl -sL → different API/source.
-- Never run destructive commands (rm -rf /, mkfs, etc).
+- Prefer bash for system ops. patch_file for edits.
+- Web scraping: prefer http_request over curl (cleaner output).
+- OS Safety: Avoid non-portable flags (e.g. NO `grep -P` on macOS).
+- On failure: ALWAYS try 2-3 alternatives.
 - Brief summary after task completion.
 
 Tools: bash, read_file, write_file, patch_file, list_dir, http_request.
@@ -25,7 +27,12 @@ Tools: bash, read_file, write_file, patch_file, list_dir, http_request.
 
 
 def get_system_prompt() -> str:
-    return _SYSTEM_TEMPLATE.format(date=datetime.now().strftime("%Y-%m-%d %H:%M %Z"))
+    system = platform.system()
+    os_name = "macOS" if system == "Darwin" else system
+    return _SYSTEM_TEMPLATE.format(
+        date=datetime.now().strftime("%Y-%m-%d %H:%M %Z"),
+        os=os_name
+    )
 
 
 COMPACTION_PROMPT = """\
